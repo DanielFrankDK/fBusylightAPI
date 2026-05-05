@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luxafor FLAG — Control Panel</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:           #07070c;
+    --surface:      #0d0d16;
+    --surface-2:    #12121e;
+    --border:       #1c1c2c;
+    --border-hi:    #2a2a3e;
+    --amber:        #e8a020;
+    --text:         #a8a8c0;
+    --text-bright:  #d8d8ee;
+    --text-dim:     #3a3a52;
+    --success:      #00e599;
+    --error:        #ff4757;
+    --font:         'Courier New', 'Lucida Console', monospace;
+
+    --c-color:   #3d9eff;
+    --c-fade:    #b07fff;
+    --c-strobe:  #ff6b6b;
+    --c-wave:    #00e5a0;
+    --c-pattern: #ffd700;
+    --c-off:     #64748b;
+    --accent:    var(--amber);
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100%;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232,160,32,0.06), transparent),
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.012) 2px, rgba(255,255,255,0.012) 4px);
+  }
+
+  /* ── Header ─────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 10;
+  }
+
+  .brand-name {
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.22em;
+    color: var(--amber);
+    text-transform: uppercase;
+  }
+  .brand-sub {
+    margin-top: 2px;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    transition: border-color .3s, color .3s;
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: background .3s, box-shadow .3s;
+    flex-shrink: 0;
+  }
+  .status-badge.ok   { border-color: rgba(0,229,153,.25); color: var(--success); }
+  .status-badge.ok .status-dot {
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+    animation: blink 2.4s ease-in-out infinite;
+  }
+  .status-badge.err  { border-color: rgba(255,71,87,.25); color: var(--error); }
+  .status-badge.err .status-dot { background: var(--error); }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── Grid ───────────────────────────────────── */
+  main {
+    padding: 24px 28px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  @media(max-width:860px){ main{ grid-template-columns: repeat(2,1fr); } }
+  @media(max-width:560px){ main{ grid-template-columns: 1fr; padding:14px 14px; } header{padding:14px;} }
+
+  /* ── Card ───────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content:'';
+    position: absolute;
+    top:0; left:0; right:0;
+    height: 2px;
+    background: var(--accent);
+    opacity: .9;
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-title {
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .led-dot {
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: #1a1a2a;
+    border: 1px solid var(--border-hi);
+    transition: background .12s, box-shadow .12s;
+    flex-shrink: 0;
+  }
+
+  .card-body {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+  }
+
+  .card-foot {
+    padding: 0 16px 14px;
+  }
+
+  /* ── Controls ───────────────────────────────── */
+  label {
+    display: block;
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+  }
+
+  select {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-bright);
+    padding: 6px 24px 6px 8px;
+    font-family: var(--font);
+    font-size: 11px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23444'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+    transition: border-color .15s;
+  }
+  select:focus { border-color: var(--accent); }
+
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  input[type=color] {
+    width: 38px; height: 28px;
+    border: 1px solid var(--border-hi);
+    background: var(--surface-2);
+    padding: 2px;
+    cursor: pointer;
+    outline: none;
+    border-radius: 0;
+    flex-shrink: 0;
+  }
+  .color-hex {
+    font-size: 11px;
+    color: var(--text-bright);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    flex: 1;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 2px;
+    background: var(--border-hi);
+    outline: none;
+    cursor: pointer;
+    border-radius: 1px;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 5px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+  }
+  .slider-val {
+    font-size: 10px;
+    color: var(--text);
+    width: 26px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ── Action button ──────────────────────────── */
+  .btn {
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--font);
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background .12s, color .12s, opacity .12s;
+  }
+  .btn:hover  { background: var(--accent); color: var(--bg); }
+  .btn:active { opacity: .7; }
+  .btn.flash  { background: var(--accent); color: var(--bg); }
+
+  /* ── Accent per section ─────────────────────── */
+  .card-color   { --accent: var(--c-color); }
+  .card-fade    { --accent: var(--c-fade); }
+  .card-strobe  { --accent: var(--c-strobe); }
+  .card-wave    { --accent: var(--c-wave); }
+  .card-pattern { --accent: var(--c-pattern); }
+  .card-off     { --accent: var(--c-off); grid-column: 1 / -1; }
+
+  .card-off .card-body {
+    flex-direction: row;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .card-off .card-body > div { flex: 1; min-width: 140px; }
+  .card-off .card-foot { min-width: 140px; flex: 1; padding: 0 16px 14px; }
+
+  .card-off-inner {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  /* ── Toasts ─────────────────────────────────── */
+  #toasts {
+    position: fixed;
+    top: 18px; right: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    z-index: 200;
+    pointer-events: none;
+  }
+  .toast {
+    padding: 9px 14px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-left: 2px solid;
+    background: var(--surface);
+    box-shadow: 0 4px 24px rgba(0,0,0,.5);
+    animation: tIn .18s ease-out;
+    white-space: nowrap;
+  }
+  .toast.ok  { border-color: var(--success); color: var(--success); }
+  .toast.err { border-color: var(--error);   color: var(--error); }
+  .toast.out { animation: tOut .18s ease-in forwards; }
+
+  @keyframes tIn  { from{opacity:0;transform:translateX(14px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes tOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(14px)} }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="brand-name">Luxafor FLAG</div>
+    <div class="brand-sub">USB Presence Light — Control Panel</div>
+  </div>
+  <div class="status-badge" id="badge">
+    <span class="status-dot"></span>
+    <span id="badgeTxt">Checking…</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- COLOR -->
+  <div class="card card-color">
+    <div class="card-head">
+      <span class="card-title">Color</span>
+      <div class="led-dot" id="dotColor"></div>
+    </div>
+    <div class="card-body">
+      <div>
+        <label>LED Target</label>
+        <select id="colorLed"><option value="all">All</option><option value="front">Front</option><option value="back">Back</option><option value="1">LED 1</option><option value="2">LED 2</option><option value="3">LED 3</option><option value="4">LED 4</option><option value="5">LED 5</option><option value="6">LED 6</option></select>
+      </div>
+      <div>
+        <label>Color</label>
+        <div class="color-row">
+          <input type="color" id="colorPick" value="#ff2200">
+          <span class="color-hex" id="colorHex">#FF2200</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <button class="btn" id="btnColor" onclick="doColor()">▶ Set Color</button>
+    </div>
+  </div>
+
+  <!-- FADE -->
+  <div class="card card-fade">
+    <div class="card-head">
+      <span class="card-title">Fade</span>
+      <div class="led-dot" id="dotFade"></div>
+    </div>
+    <div class="card-body">
+      <div>
+        <label>LED Target</label>
+        <select id="fadeLed"><option value="all">All</option><option value="front">Front</option><option value="back">Back</option><option value="1">LED 1</option><option value="2">LED 2</option><option value="3">LED 3</option><option value="4">LED 4</option><option value="5">LED 5</option><option value="6">LED 6</option></select>
+      </div>
+      <div>
+        <label>Color</label>
+        <div class="color-row">
+          <input type="color" id="fadePick" value="#00cc66">
+          <span class="color-hex" id="fadeHex">#00CC66</span>
+        </div>
+      </div>
+      <div>
+        <label>Speed</label>
+        <div class="slider-row">
+          <input type="range" id="fadeSpeed" min="0" max="255" value="128">
+          <span class="slider-val" id="fadeSpeedV">128</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <button class="btn" id="btnFade" onclick="doFade()">▶ Fade</button>
+    </div>
+  </div>
+
+  <!-- STROBE -->
+  <div class="card card-strobe">
+    <div class="card-head">
+      <span class="card-title">Strobe</span>
+      <div class="led-dot" id="dotStrobe"></div>
+    </div>
+    <div class="card-body">
+      <div>
+        <label>LED Target</label>
+        <select id="strobeLed"><option value="all">All</option><option value="front">Front</option><option value="back">Back</option><option value="1">LED 1</option><option value="2">LED 2</option><option value="3">LED 3</option><option value="4">LED 4</option><option value="5">LED 5</option><option value="6">LED 6</option></select>
+      </div>
+      <div>
+        <label>Color</label>
+        <div class="color-row">
+          <input type="color" id="strobePick" value="#ff2200">
+          <span class="color-hex" id="strobeHex">#FF2200</span>
+        </div>
+      </div>
+      <div>
+        <label>Speed</label>
+        <div class="slider-row">
+          <input type="range" id="strobeSpeed" min="0" max="255" value="64">
+          <span class="slider-val" id="strobeSpeedV">64</span>
+        </div>
+      </div>
+      <div>
+        <label>Repeat &nbsp;(0 = ∞)</label>
+        <div class="slider-row">
+          <input type="range" id="strobeRpt" min="0" max="255" value="0">
+          <span class="slider-val" id="strobeRptV">0</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <button class="btn" id="btnStrobe" onclick="doStrobe()">▶ Strobe</button>
+    </div>
+  </div>
+
+  <!-- WAVE -->
+  <div class="card card-wave">
+    <div class="card-head">
+      <span class="card-title">Wave</span>
+      <div class="led-dot" id="dotWave"></div>
+    </div>
+    <div class="card-body">
+      <div>
+        <label>Wave Type</label>
+        <select id="waveType">
+          <option value="short">Short</option>
+          <option value="long">Long</option>
+          <option value="overlapping-short">Overlapping Short</option>
+          <option value="overlapping-long">Overlapping Long</option>
+          <option value="type5">Type 5</option>
+        </select>
+      </div>
+      <div>
+        <label>Color</label>
+        <div class="color-row">
+          <input type="color" id="wavePick" value="#0088ff">
+          <span class="color-hex" id="waveHex">#0088FF</span>
+        </div>
+      </div>
+      <div>
+        <label>Speed</label>
+        <div class="slider-row">
+          <input type="range" id="waveSpeed" min="0" max="255" value="128">
+          <span class="slider-val" id="waveSpeedV">128</span>
+        </div>
+      </div>
+      <div>
+        <label>Repeat &nbsp;(0 = ∞)</label>
+        <div class="slider-row">
+          <input type="range" id="waveRpt" min="0" max="255" value="0">
+          <span class="slider-val" id="waveRptV">0</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <button class="btn" id="btnWave" onclick="doWave()">▶ Wave</button>
+    </div>
+  </div>
+
+  <!-- PATTERN -->
+  <div class="card card-pattern">
+    <div class="card-head">
+      <span class="card-title">Pattern</span>
+    </div>
+    <div class="card-body">
+      <div>
+        <label>Pattern</label>
+        <select id="patternName">
+          <option value="traffic-light">Traffic Light</option>
+          <option value="random1">Random 1</option>
+          <option value="random2">Random 2</option>
+          <option value="random3">Random 3</option>
+          <option value="random4">Random 4</option>
+          <option value="random5">Random 5</option>
+          <option value="police">Police</option>
+          <option value="rainbow">Rainbow</option>
+        </select>
+      </div>
+      <div>
+        <label>Repeat &nbsp;(0 = ∞)</label>
+        <div class="slider-row">
+          <input type="range" id="patternRpt" min="0" max="255" value="1">
+          <span class="slider-val" id="patternRptV">1</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <button class="btn" id="btnPattern" onclick="doPattern()">▶ Run Pattern</button>
+    </div>
+  </div>
+
+  <!-- OFF -->
+  <div class="card card-off">
+    <div class="card-head">
+      <span class="card-title">Off</span>
+    </div>
+    <div class="card-off-inner" style="padding:14px 16px 14px; gap:16px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:160px;">
+        <label>LED Target</label>
+        <select id="offLed"><option value="all">All</option><option value="front">Front</option><option value="back">Back</option><option value="1">LED 1</option><option value="2">LED 2</option><option value="3">LED 3</option><option value="4">LED 4</option><option value="5">LED 5</option><option value="6">LED 6</option></select>
+      </div>
+      <div style="flex:1; min-width:160px; display:flex; align-items:flex-end;">
+        <button class="btn" id="btnOff" onclick="doOff()" style="width:100%;">◼ Turn Off</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div id="toasts"></div>
+
+<script>
+  // ── Utilities ────────────────────────────────
+  const hex2rgb = h => {
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h);
+    return m ? { r:+('0x'+m[1]), g:+('0x'+m[2]), b:+('0x'+m[3]) } : {r:0,g:0,b:0};
+  };
+
+  const $ = id => document.getElementById(id);
+
+  function bindPicker(pickId, hexId, dotId) {
+    const pick = $(pickId), hexEl = $(hexId), dot = dotId ? $(dotId) : null;
+    const sync = () => {
+      const v = pick.value;
+      hexEl.textContent = v.toUpperCase();
+      if (dot) {
+        dot.style.background = v;
+        dot.style.boxShadow  = `0 0 7px ${v}cc, 0 0 14px ${v}55`;
+      }
+    };
+    pick.addEventListener('input', sync);
+    sync();
+  }
+
+  function bindSlider(slId, valId) {
+    const sl = $(slId), vEl = $(valId);
+    sl.addEventListener('input', () => vEl.textContent = sl.value);
+  }
+
+  function flash(btn) {
+    btn.classList.add('flash');
+    setTimeout(() => btn.classList.remove('flash'), 180);
+  }
+
+  function toast(msg, type) {
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    $('toasts').prepend(el);
+    setTimeout(() => {
+      el.classList.add('out');
+      setTimeout(() => el.remove(), 200);
+    }, 2800);
+  }
+
+  async function post(path, body) {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({detail: res.statusText}));
+      throw new Error(e.detail || res.statusText);
+    }
+    return res.json();
+  }
+
+  async function call(btnId, path, body) {
+    const btn = $(btnId);
+    flash(btn);
+    try {
+      await post(path, body);
+      toast('✓ ' + path.slice(1).toUpperCase(), 'ok');
+    } catch(e) {
+      toast('✗ ' + e.message, 'err');
+    }
+  }
+
+  // ── Status polling ───────────────────────────
+  async function pollStatus() {
+    try {
+      const d = await fetch('/status').then(r => r.json());
+      const badge = $('badge'), txt = $('badgeTxt');
+      badge.className = 'status-badge ' + (d.connected ? 'ok' : 'err');
+      txt.textContent = d.connected
+        ? `Connected · ${d.devices} device${d.devices !== 1 ? 's' : ''}`
+        : 'No Device';
+    } catch {
+      $('badge').className = 'status-badge err';
+      $('badgeTxt').textContent = 'Offline';
+    }
+  }
+
+  // ── Commands ─────────────────────────────────
+  function doColor() {
+    const {r,g,b} = hex2rgb($('colorPick').value);
+    call('btnColor', '/color', { led: $('colorLed').value, r, g, b });
+  }
+  function doFade() {
+    const {r,g,b} = hex2rgb($('fadePick').value);
+    call('btnFade', '/fade', { led: $('fadeLed').value, r, g, b, speed: +$('fadeSpeed').value });
+  }
+  function doStrobe() {
+    const {r,g,b} = hex2rgb($('strobePick').value);
+    call('btnStrobe', '/strobe', { led: $('strobeLed').value, r, g, b, speed: +$('strobeSpeed').value, repeat: +$('strobeRpt').value });
+  }
+  function doWave() {
+    const {r,g,b} = hex2rgb($('wavePick').value);
+    call('btnWave', '/wave', { type: $('waveType').value, r, g, b, speed: +$('waveSpeed').value, repeat: +$('waveRpt').value });
+  }
+  function doPattern() {
+    call('btnPattern', '/pattern', { name: $('patternName').value, repeat: +$('patternRpt').value });
+  }
+  function doOff() {
+    call('btnOff', '/off', { led: $('offLed').value });
+  }
+
+  // ── Init ─────────────────────────────────────
+  bindPicker('colorPick',  'colorHex',  'dotColor');
+  bindPicker('fadePick',   'fadeHex',   'dotFade');
+  bindPicker('strobePick', 'strobeHex', 'dotStrobe');
+  bindPicker('wavePick',   'waveHex',   'dotWave');
+
+  bindSlider('fadeSpeed',  'fadeSpeedV');
+  bindSlider('strobeSpeed','strobeSpeedV');
+  bindSlider('strobeRpt',  'strobeRptV');
+  bindSlider('waveSpeed',  'waveSpeedV');
+  bindSlider('waveRpt',    'waveRptV');
+  bindSlider('patternRpt', 'patternRptV');
+
+  pollStatus();
+  setInterval(pollStatus, 3000);
+</script>
+</body>
+</html>

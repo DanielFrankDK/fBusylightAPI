@@ -1,0 +1,3 @@
+# Luxafor FLAG Busylight - allow non-root access via hidraw
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f372", MODE="0664", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f372", MODE="0664", GROUP="plugdev"
