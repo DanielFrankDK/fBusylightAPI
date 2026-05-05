@@ -1,10 +1,11 @@
-"""Low-level USB communication with the Luxafor FLAG via pyusb/libusb-1.0."""
+"""Low-level HID communication via the Linux hidraw interface."""
 
-import usb.core
-import usb.util
+import glob
 
 VENDOR_ID = 0x04D8
 PRODUCT_ID = 0xF372
+_VID = f'{VENDOR_ID:04X}'.lower()
+_PID = f'{PRODUCT_ID:04X}'.lower()
 
 # LED targets
 LED_ALL = 0xFF
@@ -46,32 +47,36 @@ CMD_STROBE = 3
 CMD_WAVE = 4
 CMD_PATTERN = 6
 
-# HID SET_REPORT control transfer constants
-_HID_SET_REPORT = 0x09
-_HID_OUTPUT_REPORT = 0x0200  # report type Output, report ID 0
-_HID_INTERFACE = 0
+
+def _find_hidraw() -> str | None:
+    for uevent in glob.glob('/sys/class/hidraw/*/device/uevent'):
+        try:
+            txt = open(uevent).read().lower()
+            if _VID in txt and _PID in txt:
+                node = uevent.split('/')[4]
+                return f'/dev/{node}'
+        except OSError:
+            pass
+    return None
 
 
 class LuxaforDevice:
     def __init__(self):
-        self._dev = None
+        self._fd = None
 
     def open(self):
-        dev = usb.core.find(idVendor=VENDOR_ID, idProduct=PRODUCT_ID)
-        if dev is None:
+        path = _find_hidraw()
+        if path is None:
             raise OSError("Luxafor FLAG not found")
-        if dev.is_kernel_driver_active(_HID_INTERFACE):
-            dev.detach_kernel_driver(_HID_INTERFACE)
-        dev.set_configuration()
-        self._dev = dev
+        self._fd = open(path, 'wb')
 
     def close(self):
-        if self._dev:
+        if self._fd:
             try:
-                usb.util.dispose_resources(self._dev)
+                self._fd.close()
             except Exception:
                 pass
-            self._dev = None
+            self._fd = None
 
     def __enter__(self):
         self.open()
@@ -81,15 +86,9 @@ class LuxaforDevice:
         self.close()
 
     def _send(self, data: list[int]):
-        # 8-byte payload (no report ID prefix for ctrl_transfer)
-        report = data + [0] * (8 - len(data))
-        self._dev.ctrl_transfer(
-            0x21,              # bmRequestType: Host→Device, Class, Interface
-            _HID_SET_REPORT,
-            _HID_OUTPUT_REPORT,
-            _HID_INTERFACE,
-            report[:8],
-        )
+        report = bytes(data + [0] * (8 - len(data)))
+        self._fd.write(report[:8])
+        self._fd.flush()
 
     def set_color(self, led: int, r: int, g: int, b: int):
         self._send([CMD_STATIC, led, r, g, b])
@@ -111,5 +110,12 @@ class LuxaforDevice:
 
     @staticmethod
     def list_devices() -> list[dict]:
-        devices = usb.core.find(idVendor=VENDOR_ID, idProduct=PRODUCT_ID, find_all=True)
-        return [{"vendor_id": VENDOR_ID, "product_id": PRODUCT_ID} for _ in (devices or [])]
+        found = []
+        for uevent in glob.glob('/sys/class/hidraw/*/device/uevent'):
+            try:
+                txt = open(uevent).read().lower()
+                if _VID in txt and _PID in txt:
+                    found.append({'vendor_id': VENDOR_ID, 'product_id': PRODUCT_ID})
+            except OSError:
+                pass
+        return found
